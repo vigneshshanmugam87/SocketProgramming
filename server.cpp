@@ -103,7 +103,7 @@ int Server::parser(short *buf,long bytes, char* ip, char* port) {
 		
 		bool first_byte_printed = false;
 		
-		if(sum_length_field % 2 == 1)
+		if(length_field && sum_length_field % 2 == 1)
 		{
 			unsigned short temp = htons(buf[word_count++]);
 			printf("0x%02x ", (temp & 0xFF));
