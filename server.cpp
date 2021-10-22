@@ -1,17 +1,17 @@
-/* 
- * compile the program with g++ server.cpp in linux terminal, it generates a.out 
- * run the program with ./a.out 2345 
- * 2345 is the listening port number. 
- * 
- * Once this server program is run, it goes to listening mode. Now open another terminal and run netcat command 
- * echo 'E11000000000da7a000000091112131415161718190b1e00000000' | xxd -r -p | nc -N -p 5625 localhost 2345 
+/*
+ * compile the program with g++ server.cpp in linux terminal, it generates a.out
+ * run the program with ./a.out 2345
+ * 2345 is the listening port number.
+ *
+ * Once this server program is run, it goes to listening mode. Now open another terminal and run netcat command
+ * echo 'E11000000000da7a000000091112131415161718190b1e00000000' | xxd -r -p | nc -N -p 5625 localhost 2345
  *
  * Server program will parse the hex input received on the listening port, and parses TLV data, decode and prints output.
- * Another to test the server is run a telnet client which sends character input 
- * telnet localhost 2345 
- * 
+ * Another to test the server is run a telnet client which sends character input
+ * telnet localhost 2345
+ *
  * This time, the characters entered from telnet is not recognized and prints Unkwown/Undefined type for any type other than 0xE110, 0xDa7a, 0xB1E
- * 
+ *
  */
 
 
@@ -26,8 +26,6 @@
 #include <stdio.h>
 
 using namespace std;
-
-
 
 enum TLV_TYPE
 {
@@ -77,7 +75,7 @@ int Server::parser(short *buf,long bytes, char* ip, char* port)
 		// convert both TYPE & LENGTH from HBO to NBO
 		two_bytes = htons(two_bytes);
 		length_field = htons(length_field);
-		
+
 		switch(two_bytes)
 		{
 			case HELLO:
@@ -96,7 +94,7 @@ int Server::parser(short *buf,long bytes, char* ip, char* port)
 				break;
 
 			default:
-				printf("TYPE UNKNOWN 0x%x\n", two_bytes);
+				printf(" TYPE UNKNOWN 0x%x\n", two_bytes);
 				break;
 		}
 
@@ -109,12 +107,14 @@ int Server::parser(short *buf,long bytes, char* ip, char* port)
 		//print upto 4 bytes of data bytes
 		printf(" [");
 
+		unsigned int print_data_byte_count = 0;
 		bool first_byte_printed = false;
 		if(length_field && sum_length_field % 2 == 1)
 		{
 			unsigned short temp = htons(buf[word_count++]);
 			printf("0x%02x ", (temp & 0xFF));
 			first_byte_printed = true;
+			print_data_byte_count++;
 		}
 
 		unsigned int j;
@@ -127,22 +127,35 @@ int Server::parser(short *buf,long bytes, char* ip, char* port)
 			if(j==0) //This condition will print 2 bytes of data
 			{
 				printf("0x%02x 0x%02x ", ((temp >> 8) & 0xFF), (temp & 0xFF) );
+				print_data_byte_count += 2;
 			}
 			else // j==1 - This condition will either print 1 byte or 2 bytes of data depending on first_byte_printed
 			{
-				first_byte_printed ? printf("0x%02x ", ((temp >> 8) & 0xFF) ) : 
-									 printf("0x%02x 0x%02x ", ((temp >> 8) & 0xFF), (temp & 0xFF) );
+				if(first_byte_printed)
+				{
+					printf("0x%02x ", ((temp >> 8) & 0xFF) );
+					print_data_byte_count++;
+				}
+				else
+				{
+					printf("0x%02x 0x%02x ", ((temp >> 8) & 0xFF), (temp & 0xFF) );
+					print_data_byte_count += 2;
+				}
 			}
 		}
 
-		if(length_field && length_field <= 3 && sum_length_field % 2 == 0)//to handle 
+		if(length_field && length_field <= 3 && sum_length_field % 2 == 0 && 
+		   print_data_byte_count <=3 && print_data_byte_count < length_field) 
 		{
 			unsigned short  temp = htons(buf[word_count+j]);
 			printf("0x%02x", ((temp >> 8) & 0xFF));
 		}
 
 		printf("]\n");
-		word_count = word_count + (length_field/2);
+		
+		word_count = (first_byte_printed && (length_field % 2 == 0)) ? 
+					word_count + ((length_field/2) - 1) :  	/*for odd length followed by even length*/
+					word_count + (length_field/2);		/*for odd-odd,even-odd,even-even*/
 		sum_length_field += length_field;
 	}
 
@@ -160,7 +173,7 @@ int Server::listen_client(int port)
 		printf("Can't create a socket! Quitting \n");
 		return -1;
 	}
-	
+
 	//2. Bind the ip address and port to a socket
 	sockaddr_in hint;
 	hint.sin_family = AF_INET;
@@ -186,7 +199,7 @@ int Server::listen_client(int port)
 
 	if (getnameinfo((sockaddr*)&client, sizeof(client), host, NI_MAXHOST, service, NI_MAXSERV, 0) == 0)
 	{
-		printf("%s connected on port %s\n", host, service);
+		printf("%s connected on port number %s\n", host, service);
 	}
     	else
 	{
@@ -232,12 +245,13 @@ int Server::listen_client(int port)
 
 
 
-int main(int argc, const char * argv[]) 
+int main(int argc, const char * argv[])
 {
-    int port;
-    if(argc == 2)
+    int port = 2345;
+
+    if(argc > 1)
     {
-        port = atoi(argv[1]);
+	port = atoi(argv[1]);
     }
     else
     {
@@ -255,5 +269,3 @@ int main(int argc, const char * argv[])
 
     return 0;
 }
-
-
