@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <string.h>
@@ -29,7 +30,7 @@ class Server
 public:
     // Public functions
 	Server(int port);
-    void Server::ServiceClients(void);
+    void ServiceClients(void);
 	
 private:
 	// Private functions
@@ -48,16 +49,16 @@ private:
 
 Server::Server(int port)
 {
-	mServListeningSD(-1);
-	FD_ZERO(mAllSD);
-	memcpy(mClients, 0, sizeof(mClients));
+	mServListeningSD = -1;
+	FD_ZERO(&mAllSD);
+	memset(mClients, 0, sizeof(mClients));
 	mClientCounter = 0;
 	
 	//1. Create a socket
 	mServListeningSD = socket(AF_INET, SOCK_STREAM, 0);
 
 	//2. Bind the ip address and port to a socket
-	if (socketDesc != -1)
+	if (mServListeningSD != -1)
 	{
 		sockaddr_in hint;
 		hint.sin_family = AF_INET;
@@ -69,7 +70,7 @@ Server::Server(int port)
 		//3. Listen
 		listen(mServListeningSD, SOMAXCONN);
 		
-		FD_SET(mServListeningSD);
+		FD_SET(mServListeningSD, &mAllSD);
 	}
 }
 
@@ -201,7 +202,7 @@ void Server::ServiceClients(void)
 	{
 		fd_set copy_allSD = mAllSD;
 		
-		int socketCount = select(0, &copy, nullptr, nullptr, nullptr);
+		int socketCount = select(0, &copy_allSD, nullptr, nullptr, nullptr);
 		
 		for(int i=0; i < socketCount; i++)
 		{
@@ -218,7 +219,7 @@ void Server::ServiceClients(void)
 				if(mClientCounter >= 3)
 				{
 					printf("Cannot accept new clients, maximum clients is 4\n");
-					closesocket(client_sock);
+					close(client_sock);
 				}
 				
 				//Add the new connection to the list of connected clients
@@ -235,8 +236,10 @@ void Server::ServiceClients(void)
 					printf("%s connected on port %s\n", host, service);
 				}
 				mClients[mClientCounter].sd 		= client_sock;
-				mClients[mClientCounter].hostname 	= host;
-				mClients[mClientCounter].port 		= service;
+				//mClients[mClientCounter].hostname 	= host;
+				strcpy(mClients[mClientCounter].hostname, host);
+				//mClients[mClientCounter].port 	= service;
+				strcpy(mClients[mClientCounter].port, service);
 				mClientCounter++;
 			}
 			else
@@ -266,7 +269,7 @@ void Server::ServiceClients(void)
 					{
 						memset(clientSockInfo, 0, sizeof(ClientSockInfo));
 					}
-					closesocket(sock);
+					close(sock);
 					FD_CLR(sock, &mAllSD);
 				}
 				else //received data from client
@@ -275,7 +278,7 @@ void Server::ServiceClients(void)
 					
 					if(clientSockInfo)
 					{
-						Parser(array, bytesReceived, clientSockInfo.hostname, clientSockInfo.port);
+						Parser(array, bytesReceived, clientSockInfo->hostname, clientSockInfo->port);
           			
 						// Echo message back to client
 						send(sock, buf, bytesReceived + 1, 0);
@@ -295,7 +298,7 @@ int main(int argc, const char * argv[])
 
     Server serv(port);
     
-	ServiceClients();
+	serv.ServiceClients();
 
     std::cout << "End of program" ;
 
