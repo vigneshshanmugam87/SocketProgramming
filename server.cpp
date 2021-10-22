@@ -24,55 +24,42 @@ public:
 private:
 };
 
-int Server::parser(short *buf,long bytes, char* ip, char* port) {
-    // char *t = buf;
-
-//    short *temp;
-//    temp = buf;
-    //cout << *temp << endl;
-//	printf("%x\n",*temp);
-//    temp++;
-    //cout << *temp << endl;
-//	printf("%x\n",*temp);
-
-	unsigned short two_bytes = 0;
-	unsigned int length_field = 0;
-	unsigned int sum_length_field = 0;
-	unsigned int word_count = 0; //1word = 2bytes
+int Server::parser(short *buf,long bytes, char* ip, char* port) 
+{
+	unsigned short 	two_bytes 		= 0;
+	unsigned int 	length_field 	= 0;
+	unsigned int 	sum_length_field= 0;
+	unsigned int 	word_count 		= 0; //1word = 2bytes
+	
 	for(unsigned int i = 0; i<bytes/2; i=word_count)
 	{
-		cout << "[" << ip << ":" << port << "]" << flush;
+		printf("[%s:%s]", ip, port);
 		
 		if(sum_length_field%2==1)//if LENGTH is odd, this condtion will be true
 		{
-			//two_bytes = ((buf[i] & 0xFF) << 8) | ((buf[i+1] & 0xFF00) >> 8);
-			two_bytes = ((buf[i+1] & 0xFF) << 8) | ((buf[i] >> 8) & 0xFF);
+			// Grep the two_bytes (TYPE) & length_field (LENGTH) in host byte order
+			two_bytes 		= ((buf[i+1] & 0xFF) << 8) | 
+							  ((buf[i] >> 8) & 0xFF);
 
-			//length_field = ((buf[i+1] & 0xFF) << 24) |		//Length 1st Byte 
-			//		(((buf[i+2] >> 8) & 0xFF) << 16) | 	//Length 2nd Byte
-			//		((buf[i+2] & 0xFF) << 8) |		//Length 3rd Byte
-			//		((buf[i+3] >> 8) & 0xFF);		//Length 4th Byte
-
-			length_field = ((buf[i+2] & 0xFF) << 24) |
-					(((buf[i+1] >> 8) & 0xFF) << 16) |
-					((buf[i+3] & 0xFF) << 8) |
-					((buf[i+2] >> 8) & 0xFF);
+			length_field 	= ((buf[i+2] & 0xFF) << 24) 		|
+							  (((buf[i+1] >> 8) & 0xFF) << 16) 	|
+							  ((buf[i+3] & 0xFF) << 8) 			|
+							  ((buf[i+2] >> 8) & 0xFF);
 		}
 		else
 		{
-        	        two_bytes = buf[i];
-	                length_field = (buf[i+1] << 16) | buf[i+2];
+        	// Grep the two_bytes (TYPE) & length_field (LENGTH) in HBO
+			two_bytes = buf[i];
+			length_field = (buf[i+1] << 16) | buf[i+2];
 		}
 
-
+		// convert both TYPE & LENGTH from HBO to NBO
 		two_bytes = htons(two_bytes);
 		length_field = htons(length_field);
-		//sum_length_field += length_field;
-
+		
 		switch(two_bytes)
 		{
 			case HELLO:
-				//Add more checks
 				printf(" [HELLO] [%d] ", length_field);
 				word_count +=3; //6 nibbles = 3 bytes.. because TYPE_SIZE+LENGTH_SIZE
 				break;
@@ -113,20 +100,22 @@ int Server::parser(short *buf,long bytes, char* ip, char* port) {
 		unsigned int j;
 		for (j=0 ; j<length_field/2 ; j++)
 		{
-			if(j==2)
+			if(j==2) //For not to print more than 4 bytes
 				break;
 
 			unsigned short temp = htons(buf[word_count+j]);
-			if(j==0)
+			if(j==0) //This condition will print 2 bytes of data
+			{
 				printf("0x%02x 0x%02x ", ((temp >> 8) & 0xFF), (temp & 0xFF) );
-			else // j==1
+			}
+			else // j==1 - This condition will either print 1 byte or 2 bytes of data depending on first_byte_printed
 			{
 				first_byte_printed ? printf("0x%02x ", ((temp >> 8) & 0xFF) ) : 
-									printf("0x%02x 0x%02x ", ((temp >> 8) & 0xFF), (temp & 0xFF) );
+									 printf("0x%02x 0x%02x ", ((temp >> 8) & 0xFF), (temp & 0xFF) );
 			}
 		}
 		
-		if(length_field && length_field <= 3 && sum_length_field % 2 == 0)//to handle the length that is odd 
+		if(length_field && length_field <= 3 && sum_length_field % 2 == 0)//to handle 
 		{
 			unsigned short  temp = htons(buf[word_count+j]);
 			printf("0x%02x", ((temp >> 8) & 0xFF));
@@ -139,40 +128,8 @@ int Server::parser(short *buf,long bytes, char* ip, char* port) {
 		sum_length_field += length_field;
 	
 	}
-	//how to read the buffer, each nibble is 4 bits
-	//do we need a TLV parser?
-/*    switch(buf) {
-	case HELLO:
-		cout << "[Hello]" << flush;
-		break;
-	case DATA:
-		cout << "[Data] " << flush;
-		break;
-	case GOODBYE:
-		cout << "[Goodbye] "<< flush;
-		break;
-	}
-    cout << "[" << "[Hello]" << flush ;
-
-    cout << string(buf,0, 5)<< flush << endl; 
-
-    	while(*t != '\0')
-	{
-
-        
-	//printf("%c",*t);
-        cout << *t << flush;
-
-        t++;
-
-    }while(*t != '\0');
-*/
-        cout << endl;
-
-    
 
     return 0;
-
 }
 
 
