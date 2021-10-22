@@ -1,3 +1,20 @@
+/* 
+ * compile the program with g++ server.cpp in linux terminal, it generates a.out 
+ * run the program with ./a.out 2345 
+ * 2345 is the listening port number. 
+ * 
+ * Once this server program is run, it goes to listening mode. Now open another terminal and run netcat command 
+ * echo 'E11000000000da7a000000091112131415161718190b1e00000000' | xxd -r -p | nc -N -p 5625 localhost 2345 
+ *
+ * Server program will parse the hex input received on the listening port, and parses TLV data, decode and prints output.
+ * Another to test the server is run a telnet client which sends character input 
+ * telnet localhost 2345 
+ * 
+ * This time, the characters entered from telnet is not recognized and prints Unkwown/Undefined type for any type other than 0xE110, 0xDa7a, 0xB1E
+ * 
+ */
+
+
 #include <iostream>
 #include <sys/types.h>
 #include <unistd.h>
@@ -10,7 +27,9 @@
 
 using namespace std;
 
-enum TLV_TYPE 
+
+
+enum TLV_TYPE
 {
     UNKNOWN = 0,
     GOODBYE = 0x0B1E,
@@ -18,7 +37,7 @@ enum TLV_TYPE
     HELLO = 0xE110
 };
 
-class Server 
+class Server
 {
 public:
     int listen_client(int port);
@@ -26,27 +45,27 @@ public:
 private:
 };
 
-int Server::parser(short *buf,long bytes, char* ip, char* port) 
+int Server::parser(short *buf,long bytes, char* ip, char* port)
 {
 	unsigned short 	two_bytes 		= 0;
 	unsigned int 	length_field 	= 0;
 	unsigned int 	sum_length_field= 0;
 	unsigned int 	word_count 		= 0; //1word = 2bytes
-	
+
 	for(unsigned int i = 0; i<bytes/2; i=word_count)
 	{
 		printf("[%s:%s]", ip, port);
-		
+
 		if(sum_length_field%2==1)//if LENGTH is odd, this condtion will be true
 		{
 			// Grep the two_bytes (TYPE) & length_field (LENGTH) in host byte order
-			two_bytes 		= ((buf[i+1] & 0xFF) << 8) | 
-							  ((buf[i] >> 8) & 0xFF);
+			two_bytes 	= ((buf[i+1] & 0xFF) << 8) |
+					  ((buf[i] >> 8) & 0xFF);
 
 			length_field 	= ((buf[i+2] & 0xFF) << 24) 		|
-							  (((buf[i+1] >> 8) & 0xFF) << 16) 	|
-							  ((buf[i+3] & 0xFF) << 8) 			|
-							  ((buf[i+2] >> 8) & 0xFF);
+					  (((buf[i+1] >> 8) & 0xFF) << 16) 	|
+					  ((buf[i+3] & 0xFF) << 8) 		|
+					  ((buf[i+2] >> 8) & 0xFF);
 		}
 		else
 		{
@@ -79,7 +98,7 @@ int Server::parser(short *buf,long bytes, char* ip, char* port)
 			default:
 				printf("TYPE UNKNOWN 0x%x\n", two_bytes);
 				break;
-		} 
+		}
 
 		if(two_bytes != HELLO && two_bytes != DATA && two_bytes != GOODBYE)
 		{
@@ -89,9 +108,8 @@ int Server::parser(short *buf,long bytes, char* ip, char* port)
 
 		//print upto 4 bytes of data bytes
 		printf(" [");
-		
+
 		bool first_byte_printed = false;
-		
 		if(length_field && sum_length_field % 2 == 1)
 		{
 			unsigned short temp = htons(buf[word_count++]);
@@ -116,7 +134,7 @@ int Server::parser(short *buf,long bytes, char* ip, char* port)
 									 printf("0x%02x 0x%02x ", ((temp >> 8) & 0xFF), (temp & 0xFF) );
 			}
 		}
-		
+
 		if(length_field && length_field <= 3 && sum_length_field % 2 == 0)//to handle 
 		{
 			unsigned short  temp = htons(buf[word_count+j]);
@@ -126,7 +144,6 @@ int Server::parser(short *buf,long bytes, char* ip, char* port)
 		printf("]\n");
 		word_count = word_count + (length_field/2);
 		sum_length_field += length_field;
-	
 	}
 
     return 0;
@@ -174,7 +191,7 @@ int Server::listen_client(int port)
     	else
 	{
 		inet_ntop(AF_INET, &client.sin_addr, host, NI_MAXHOST);
-		printf("%s connected on port %s\n", host, ntohs(client.sin_port));
+		printf("%s connected on port %d\n", host, ntohs(client.sin_port));
 	}
 
 	// Close listening socket
@@ -202,7 +219,7 @@ int Server::listen_client(int port)
 		}
 
 		parser(array, bytesReceived, host, service);
-          
+
         // Echo message back to client
         send(clientSocket, buf, bytesReceived + 1, 0);
 	}
@@ -217,7 +234,18 @@ int Server::listen_client(int port)
 
 int main(int argc, const char * argv[]) 
 {
-    int port = atoi(argv[1]);
+    int port;
+    if(argc == 2)
+    {
+        port = atoi(argv[1]);
+    }
+    else
+    {
+	printf("Enter port number as command line input\n> ./a.out 2345\n");
+	return 0;
+    }
+
+
     std::cout << "Hello, TCP!\n";
 
     Server serv;
