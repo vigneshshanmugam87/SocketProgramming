@@ -29,7 +29,6 @@ int Server::parser(short *buf,long bytes, char* ip, char* port) {
 
 //    short *temp;
 //    temp = buf;
-
     //cout << *temp << endl;
 //	printf("%x\n",*temp);
 //    temp++;
