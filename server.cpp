@@ -88,11 +88,15 @@ int Server::parser(short *buf,long bytes, char* ip, char* port) {
 				break;
 
 			default:
-				printf(" unknown type 0x%x", two_bytes);
+				printf("TYPE UNKNOWN 0x%x\n", two_bytes);
 				break;
 		} 
-		//if(two_bytes == UNKNOWN)
-		//	break;
+
+		if(two_bytes != HELLO && two_bytes != DATA && two_bytes != GOODBYE)
+		{
+			printf("Malicious user sending UNKNOWN TYPE data, hence terminating..\n");
+			break;
+		}
 
 		//print 4 bytes of variable data
 		printf(" [");
@@ -122,7 +126,7 @@ int Server::parser(short *buf,long bytes, char* ip, char* port) {
 			}
 		}
 		
-		if(length_field && length_field == 3 && sum_length_field % 2 == 0)//to handle the length that is odd 
+		if(length_field && length_field <= 3 && sum_length_field % 2 == 0)//to handle the length that is odd 
 		{
 			unsigned short  temp = htons(buf[word_count+j]);
 			printf("0x%02x", ((temp >> 8) & 0xFF));
