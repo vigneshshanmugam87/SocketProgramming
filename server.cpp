@@ -7,6 +7,7 @@
 #include <string.h>
 #include <string>
 #include <stdio.h>
+
 #define PORT_NUMBER 2345
 
 using namespace std;
@@ -19,7 +20,7 @@ enum TLV_TYPE {
 
 class Server {
 public:
-    int listen_client();
+    int listen_client(int port);
     int parser(short* buf, long bytes, char* ip, char* port);
 private:
 };
@@ -176,7 +177,7 @@ int Server::parser(short *buf,long bytes, char* ip, char* port) {
 }
 
 
-int Server::listen_client() {
+int Server::listen_client(int port) {
 
     // Create a socket
 
@@ -200,7 +201,7 @@ int Server::listen_client() {
 
        hint.sin_family = AF_INET;
 
-       hint.sin_port = htons(PORT_NUMBER); //host to network byte order
+       hint.sin_port = htons(port); //host to network byte order
 
        inet_pton(AF_INET, "0.0.0.0", &hint.sin_addr);
 
@@ -337,13 +338,12 @@ int Server::listen_client() {
 
 int main(int argc, const char * argv[]) {
 
-    
-   // insert code here...
+    int port = atoi(argv[1]);
 
     std::cout << "Hello, TCP!\n";
 
     Server serv;
-    serv.listen_client();
+    serv.listen_client(port);
 
     std::cout << "End of program" ;
 
