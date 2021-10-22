@@ -96,12 +96,14 @@ int Server::parser(short *buf,long bytes, char* ip, char* port) {
 
 		//print 4 bytes of variable data
 		printf(" [");
-
+		
+		bool first_byte_printed = false;
+		
 		if(sum_length_field % 2 == 1)
 		{
-			unsigned short temp = htons(buf[word_count]);
+			unsigned short temp = htons(buf[word_count++]);
 			printf("0x%02x ", (temp & 0xFF));
-			word_count++;
+			first_byte_printed = true;
 		}
 
 		unsigned int j;
@@ -111,10 +113,16 @@ int Server::parser(short *buf,long bytes, char* ip, char* port) {
 				break;
 
 			unsigned short temp = htons(buf[word_count+j]);
-			printf("0x%02x 0x%02x ", ((temp >> 8) & 0xFF), (temp & 0xFF) );
+			if(j==0)
+				printf("0x%02x 0x%02x ", ((temp >> 8) & 0xFF), (temp & 0xFF) );
+			else // j==1
+			{
+				first_byte_printed ? printf("0x%02x ", ((temp >> 8) & 0xFF) ) : 
+									printf("0x%02x 0x%02x ", ((temp >> 8) & 0xFF), (temp & 0xFF) );
+			}
 		}
 		
-		if(length_field == 3 && sum_length_field % 2 == 0)//to handle the length that is odd 
+		if(length_field && length_field == 3 && sum_length_field % 2 == 0)//to handle the length that is odd 
 		{
 			unsigned short  temp = htons(buf[word_count+j]);
 			printf("0x%02x", ((temp >> 8) & 0xFF));
